@@ -16,7 +16,6 @@ import time
 import requests
 import threading
 from datetime import datetime
-from anthropic import Anthropic
 
 # ============================================================
 # CONFIGURACIÓN
@@ -272,62 +271,31 @@ def monitor_apuestas():
 # ============================================================
 # IA — PROCESAR MENSAJE CON CLAUDE
 # ============================================================
-def procesar_con_ia(mensaje, partidos_vivos, chat_id):
-    """Usa Claude para interpretar el mensaje y ejecutar la acción correcta."""
-    client = Anthropic(api_key=ANTHROPIC_KEY)
+def procesar_mensaje(mensaje, partidos_vivos):
+    """Detecta la intención del mensaje con palabras clave."""
+    msg = mensaje.lower().strip()
 
-    # Preparar contexto de partidos
-    partidos_str = json.dumps([
-        {
-            "id": p["fixture"]["id"],
-            "local": p["teams"]["home"]["name"],
-            "visita": p["teams"]["away"]["name"],
-            "goles_local": p["goals"]["home"] or 0,
-            "goles_visita": p["goals"]["away"] or 0,
-            "minuto": p["fixture"]["status"].get("elapsed", 0),
-            "liga": LIGAS.get(p["league"]["id"], p["league"]["name"])
-        }
-        for p in partidos_vivos
-    ], ensure_ascii=False)
+    # Detectar apuesta
+    palabras_apuesta = ["apuest", "aposto", "me juego", "pongo a", "registro apuesta"]
+    if any(p in msg for p in palabras_apuesta):
+        # Buscar partido mencionado
+        for p in partidos_vivos:
+            local  = p["teams"]["home"]["name"].lower()
+            visita = p["teams"]["away"]["name"].lower()
+            if local in msg or visita in msg:
+                return {"accion": "apostar", "fixture_id": p["fixture"]["id"], "respuesta": ""}
+        return {"accion": "apostar_sin_partido", "fixture_id": None, "respuesta": ""}
 
-    historial = cargar_historial()
-    aciertos = sum(1 for h in historial if h["resultado"] == "ACIERTO")
-    total    = len(historial)
+    # Detectar historial
+    if any(p in msg for p in ["historial", "mis apuestas", "cuantos aciertos", "estadistica", "resultado"]):
+        return {"accion": "historial", "fixture_id": None, "respuesta": ""}
 
-    system = f"""Eres un asistente de fútbol en vivo. Clasificas mensajes del usuario en acciones.
+    # Detectar minuto 80+
+    if any(p in msg for p in ["80", "minuto 8", "urgente", "ultimo", "final", "cierre"]):
+        return {"accion": "listar_80", "fixture_id": None, "respuesta": ""}
 
-Partidos en vivo ahora:
-{partidos_str}
-
-Historial del usuario: {aciertos}/{total} aciertos.
-
-Responde UNICAMENTE con JSON válido, sin texto adicional, sin backticks, sin markdown.
-Estructura exacta:
-{{"accion": "listar", "fixture_id": null, "respuesta": "texto"}}
-
-Valores posibles para accion:
-- listar: quiere ver partidos en vivo (cualquier variante: "partidos", "que hay", "en vivo", "que se juega", etc)
-- listar_80: quiere ver partidos en minuto 80 o mas
-- apostar: quiere registrar una apuesta a gol
-- historial: quiere ver su historial
-- responder: pregunta sobre un partido especifico
-
-IMPORTANTE: Si el mensaje tiene alguna relacion con partidos o futbol, usa "listar". En caso de duda, usa "listar"."""
-
-    try:
-        r = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=500,
-            system=system,
-            messages=[{"role": "user", "content": mensaje}]
-        )
-        raw = r.content[0].text.strip()
-        # Limpiar posibles backticks
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        return json.loads(raw)
-    except Exception as e:
-        print(f"[IA ERROR] {e}")
-        return {"accion": "responder", "fixture_id": None, "respuesta": "No entendí tu mensaje, ¿puedes repetirlo?"}
+    # Por defecto listar todos
+    return {"accion": "listar", "fixture_id": None, "respuesta": ""}
 
 # ============================================================
 # MAIN LOOP
@@ -368,8 +336,8 @@ def main():
             # Obtener partidos en vivo
             partidos = obtener_partidos_vivos()
 
-            # Procesar con IA
-            resultado = procesar_con_ia(texto, partidos, chat_id)
+            # Procesar mensaje
+            resultado = procesar_mensaje(texto, partidos)
             accion    = resultado.get("accion")
             fixture_id = resultado.get("fixture_id")
             respuesta  = resultado.get("respuesta", "")
@@ -379,6 +347,9 @@ def main():
 
             elif accion == "listar_80":
                 enviar_mensaje(formatear_partidos_min80(partidos), chat_id)
+
+            elif accion == "apostar_sin_partido":
+                enviar_mensaje("¿A qué partido quieres apostar? Dime el nombre del equipo.", chat_id)
 
             elif accion == "apostar" and fixture_id:
                 partido = obtener_partido_por_id(fixture_id)

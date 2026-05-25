@@ -79,14 +79,23 @@ def guardar_historial(data):
 def api_get(endpoint, params={}):
     headers = {"x-apisports-key": API_KEY}
     try:
+        print(f"[API] Consultando {endpoint} con {params}")
         r = requests.get(
             f"https://v3.football.api-sports.io/{endpoint}",
             headers=headers,
             params=params,
-            timeout=10
+            timeout=15
         )
-        return r.json().get("response", [])
-    except:
+        print(f"[API] Status: {r.status_code}")
+        data = r.json()
+        errores = data.get("errors", {})
+        if errores:
+            print(f"[API ERROR] {errores}")
+        resultados = data.get("response", [])
+        print(f"[API] Resultados: {len(resultados)}")
+        return resultados
+    except Exception as e:
+        print(f"[API EXCEPTION] {e}")
         return []
 
 def obtener_partidos_vivos():

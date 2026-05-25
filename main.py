@@ -294,28 +294,25 @@ def procesar_con_ia(mensaje, partidos_vivos, chat_id):
     aciertos = sum(1 for h in historial if h["resultado"] == "ACIERTO")
     total    = len(historial)
 
-    system = f"""Eres un asistente de fútbol en vivo. Ayudas al usuario a registrar apuestas a gol adicional y consultar estadísticas.
+    system = f"""Eres un asistente de fútbol en vivo. Clasificas mensajes del usuario en acciones.
 
 Partidos en vivo ahora:
 {partidos_str}
 
 Historial del usuario: {aciertos}/{total} aciertos.
 
-IMPORTANTE: Responde SOLO con un JSON con esta estructura:
-{{
-  "accion": "listar" | "listar_80" | "apostar" | "historial" | "responder",
-  "fixture_id": null o número (solo para "apostar"),
-  "respuesta": "texto para el usuario"
-}}
+Responde UNICAMENTE con JSON válido, sin texto adicional, sin backticks, sin markdown.
+Estructura exacta:
+{{"accion": "listar", "fixture_id": null, "respuesta": "texto"}}
 
-Acciones:
-- "listar": usuario quiere ver todos los partidos en vivo
-- "listar_80": usuario quiere ver partidos en min 80+
-- "apostar": usuario quiere registrar una apuesta (identifica el fixture_id del partido mencionado)
-- "historial": usuario quiere ver su historial
-- "responder": responde preguntas generales sobre los partidos en vivo
+Valores posibles para accion:
+- listar: quiere ver partidos en vivo (cualquier variante: "partidos", "que hay", "en vivo", "que se juega", etc)
+- listar_80: quiere ver partidos en minuto 80 o mas
+- apostar: quiere registrar una apuesta a gol
+- historial: quiere ver su historial
+- responder: pregunta sobre un partido especifico
 
-Sé conciso y en español."""
+IMPORTANTE: Si el mensaje tiene alguna relacion con partidos o futbol, usa "listar". En caso de duda, usa "listar"."""
 
     try:
         r = client.messages.create(

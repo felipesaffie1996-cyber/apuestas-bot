@@ -42,6 +42,7 @@ LIGAS = {
     239: "Apertura Paraguay 🇵🇾",
     268: "Liga Pro Ecuador 🇪🇨",
     278: "Primera División Uruguay 🇺🇾",
+    253: "MLS 🇺🇸",
 }
 
 APUESTAS_FILE  = "apuestas.json"

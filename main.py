@@ -90,12 +90,8 @@ def api_get(endpoint, params={}):
         return []
 
 def obtener_partidos_vivos():
-    """Retorna solo partidos de las ligas configuradas."""
-    todos = api_get("fixtures", {"live": "all"})
-    return [
-        p for p in todos
-        if p["league"]["id"] in LIGAS
-    ]
+    """Retorna partidos en vivo — incluye todas las ligas."""
+    return api_get("fixtures", {"live": "all"})
 
 def obtener_todos_partidos_vivos():
     """Retorna TODOS los partidos en vivo sin filtro."""
@@ -138,7 +134,7 @@ def formatear_partidos(partidos):
 
     texto = "⚽ <b>Partidos en vivo:</b>\n\n"
     for p in partidos:
-        liga   = LIGAS.get(p["league"]["id"], p["league"]["name"])
+        liga   = LIGAS.get(p["league"]["id"], f"{p['league']['name']} ({p['league']['country']})")
         local  = p["teams"]["home"]["name"]
         visita = p["teams"]["away"]["name"]
         gl     = p["goals"]["home"] or 0

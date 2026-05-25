@@ -97,6 +97,10 @@ def obtener_partidos_vivos():
         if p["league"]["id"] in LIGAS
     ]
 
+def obtener_todos_partidos_vivos():
+    """Retorna TODOS los partidos en vivo sin filtro."""
+    return api_get("fixtures", {"live": "all"})
+
 def obtener_partido_por_id(fixture_id):
     data = api_get("fixtures", {"id": fixture_id})
     return data[0] if data else None
@@ -336,6 +340,23 @@ def main():
 
             # Obtener partidos en vivo
             partidos = obtener_partidos_vivos()
+
+            # Comando debug — ver todos los partidos sin filtro
+            if "debug" in texto.lower() or "todos los partidos" in texto.lower():
+                todos = obtener_todos_partidos_vivos()
+                if not todos:
+                    enviar_mensaje("No hay partidos en vivo ahora mismo.", chat_id)
+                else:
+                    msg = f"🔍 <b>Todos los partidos en vivo ({len(todos)}):</b>\n\n"
+                    for p in todos[:20]:
+                        lid = p["league"]["id"]
+                        nombre = p["league"]["name"]
+                        local = p["teams"]["home"]["name"]
+                        visita = p["teams"]["away"]["name"]
+                        min_actual = p["fixture"]["status"].get("elapsed", "?")
+                        msg += f"ID Liga: <b>{lid}</b> — {nombre}\n{local} vs {visita} | Min {min_actual}'\n\n"
+                    enviar_mensaje(msg, chat_id)
+                continue
 
             # Procesar mensaje
             resultado = procesar_mensaje(texto, partidos)
